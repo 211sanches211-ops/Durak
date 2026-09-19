@@ -6,7 +6,7 @@
 <title>Дурак</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script>if(!window.Peer){document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');}</script>
+<script>if(!window.Peer){document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');}</script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#071522;--panel:#12293c;--pb:#20415c;--row:#0e2233;--text:#cfe6ff;--muted:#8aa7bf;--gold:#f6c453;--gd:#f0a92e;--cw:64px;--ch:92px;}
@@ -99,16 +99,12 @@
       </div>
       <button class="btn gold" id="btnBot">Играть с ботами</button>
       <div class="lbl">Онлайн с друзьями (2–4)</div>
-      <div>
-        <button class="btn gold" id="btnCreate">Создать комнату</button>
-      </div>
+      <div><button class="btn gold" id="btnCreate">Создать комнату</button></div>
       <div class="joinrow">
         <input id="roomInput" maxlength="4" placeholder="КОД">
         <button class="btn" id="btnJoin">Войти</button>
       </div>
-      <div style="margin-top:10px;">
-        <button class="btn" id="btnRec">🏆 Рекорды</button>
-      </div>
+      <div style="margin-top:10px;"><button class="btn" id="btnRec">🏆 Рекорды</button></div>
     </div>
   </div>
 
@@ -139,7 +135,7 @@
     <p id="modalText"></p>
     <div id="recordsBox"></div>
     <div>
-     <button class="btn" id="btnCopy" hidden>Скопировать ссылку</button>
+      <button class="btn" id="btnCopy" hidden>Скопировать ссылку</button>
       <button class="btn gold" id="btnAgain" hidden>Играть ещё</button>
       <button class="btn" id="btnClose" hidden>Закрыть</button>
     </div>
@@ -149,19 +145,19 @@
 <script>
   const $=id=>document.getElementById(id);
   const CW=64,CH=92,PREFIX='DURAK-';
-  const PEER_CONFIG = {
-  host: 'durak-peer.onrender.com',  // ← подставь свой домен с Render
-  port: 443,
-  path: '/',
-  secure: true,
-  debug: 0
-};
+  /* === ТВОЙ СЕРВЕР ЗНАКОМСТВА (Render). Замени host на свой домен === */
+  const PEER_CONFIG={host:'durak-peer.onrender.com',port:443,path:'/',secure:true,debug:0};
+  /* === Direct Link бота для приглашений (если не создавал — оставь, скопируется ссылка сайта) === */
+  const TG_APP_LINK='https://t.me/Freegamedurak_bot/play';
   const L=v=>({11:'J',12:'Q',13:'K',14:'A'}[v]||String(v));
   const SUITS=['♠','♥','♦','♣'],VALUES=[6,7,8,9,10,11,12,13,14];
   const rectOf=el=>{const r=el.getBoundingClientRect();return{left:r.left,top:r.top,width:r.width,height:r.height};};
   const centerRect=(el,w,h)=>{const r=el.getBoundingClientRect();return{left:r.left+r.width/2-w/2,top:r.top+r.height/2-h/2,width:w,height:h};};
   if(window.Telegram){Telegram.WebApp.ready();Telegram.WebApp.expand();}
   const NAME=(window.Telegram&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.user)?Telegram.WebApp.initDataUnsafe.user.first_name:'Игрок';
+  const siteLink=()=>location.origin+location.pathname+'?room='+roomCode;
+  const inviteLink=()=>TG_APP_LINK?TG_APP_LINK+'?startapp='+roomCode:siteLink();
+  function copyFeedback(btn){const t=btn.textContent;btn.textContent='Скопировано!';setTimeout(()=>btn.textContent=t,1200);}
 
   /* звук */
   let ac=null;
@@ -178,13 +174,13 @@
   /* рекорды */
   function loadDB(){try{return JSON.parse(localStorage.getItem('durakDB'))||{entries:{}};}catch(e){return{entries:{}};}}
   function saveDB(db){localStorage.setItem('durakDB',JSON.stringify(db));}
-  function myEntry(){const db=loadDB();return db.entries[NAME];}
+  function myEntry(){return loadDB().entries[NAME];}
   function recordResult(res){
     const db=loadDB();
     const e=db.entries[NAME]||(db.entries[NAME]={name:NAME,score:0,wins:0,losses:0,draws:0,streak:0,best:0});
     if(res==='win'){e.wins++;e.score+=100;e.streak++;e.best=Math.max(e.best,e.streak);}
     else if(res==='draw'){e.draws++;e.score+=50;e.streak=0;}
-    else{e.losses++;e.score+=0;e.streak=0;}
+    else{e.losses++;e.streak=0;}
     saveDB(db);updateStats();
   }
   function updateStats(){
@@ -194,21 +190,17 @@
       :`Рейтинг: <span class="gold">0</span> • Сыграй первую партию!`;
   }
   function showRecords(){
-    const db=loadDB();
-    const list=Object.values(db.entries).sort((a,b)=>b.score-a.score||b.wins-a.wins).slice(0,10);
+    const list=Object.values(loadDB().entries).sort((a,b)=>b.score-a.score||b.wins-a.wins).slice(0,10);
     $('recordsBox').innerHTML=list.length?list.map((e,i)=>
-      `<div class="rec-row${e.name===NAME?' me':''}"><span class="pos">${i+1}</span><span class="nm">${e.name}</span><span class="sc">${e.score.toLocaleString('ru')}</span></div>`
-    ).join(''):'<p>Пока пусто — стань первым!</p>';
-    $('modalTitle').textContent='🏆 Топ‑10 игроков';
-    $('modalText').textContent='Рейтинг: победа +100, ничья +50.';
-    $('btnCopy').hidden=true;$('btnAgain').hidden=true;$('btnClose').hidden=false;
-    $('overlay').classList.add('show');
+      `<div class="rec-row${e.name===NAME?' me':''}"><span class="pos">${i+1}</span><span class="nm">${e.name}</span><span class="sc">${e.score.toLocaleString('ru')}</span></div>`).join(''):'<p>Пока пусто — стань первым!</p>';
+    showModal('🏆 Топ‑10 игроков','Рейтинг: победа +100, ничья +50.',{close:true});
   }
 
   /* движок N игроков */
   const createDeck=()=>{const d=[];for(const s of SUITS)for(const v of VALUES)d.push({s,v});return d;};
   const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
   const canBeat=(a,d,tr)=>d.s===a.s?d.v>a.v:(d.s===tr&&a.s!==tr);
+  function nextActive(st,from){for(let k=1;k<=st.N;k++){const i=(from+k)%st.N;if(!st.out[i])return i;}return -1;}
   function newState(mode,N){
     const deck=shuffle(createDeck()),trump=deck[deck.length-1],hands=[];
     for(let i=0;i<N;i++)hands.push([]);
@@ -218,7 +210,6 @@
     st.defender=nextActive(st,st.attacker);
     return st;
   }
-  function nextActive(st,from){for(let k=1;k<=st.N;k++){const i=(from+k)%st.N;if(!st.out[i])return i;}return -1;}
   function ranksOnTable(st){const s=new Set();st.table.forEach(p=>{s.add(p.attack.v);if(p.defense)s.add(p.defense.v);});return s;}
   function legalMoves(st,idx){
     const res={legal:[],canBito:false,canTake:false,canTransfer:false};
@@ -234,8 +225,7 @@
         st.hands[idx].forEach((c,i)=>{if(canBeat(t.attack,c,st.trump))res.legal.push(i);});
         res.canTake=true;
         if(st.mode==='переводной'&&!st.transferredBy.includes(idx)&&st.table.every(p=>!p.defense)){
-          const ranks=st.table.map(p=>p.attack.v);
-          const nd=nextActive(st,idx);
+          const ranks=st.table.map(p=>p.attack.v),nd=nextActive(st,idx);
           res.canTransfer=nd>=0&&st.hands[idx].some(c=>ranks.includes(c.v))&&(st.table.length+1)<=Math.min(6,st.hands[nd].length);
         }
       }
@@ -291,39 +281,35 @@
     return false;
   }
   function view(st,idx){
-    const l=legalMoves(st,idx);
-    const others=[];
+    const l=legalMoves(st,idx),others=[];
     for(let i=0;i<st.N;i++)if(i!==idx)others.push({name:st.names[i]||('Игрок '+(i+1)),count:st.hands[i].length,role:i===st.attacker?'А':i===st.defender?'З':''});
     return{you:idx,N:st.N,names:st.names,hand:st.hands[idx],trump:st.trump,deck:st.deck.length,table:st.table,attacker:st.attacker,defender:st.defender,others,legal:l.legal,canBito:l.canBito&&st.attacker===idx,canTake:l.canTake&&st.defender===idx,canTransfer:l.canTransfer,over:st.over,mode:st.mode};
   }
 
   /* клиент */
   let S=null,V=null,botMode=false,isHost=false,netMode=false,roomCode=null,needDeal=false,prevSig='',botTimer=null,recorded=false;
-  let peer=null,conns=[],lobbyNames=[NAME],mySeat=0,selectedMode='подкидной',botCount=1;
-  let lobby=null;
+  let peer=null,conns=[],lobbyNames=[NAME],mySeat=0,selectedMode='подкидной',botCount=1,lobby=null;
 
   document.querySelectorAll('.cnt').forEach(b=>b.onclick=()=>{document.querySelectorAll('.cnt').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');botCount=+b.dataset.b;});
   $('modePod').onclick=()=>{selectedMode='подкидной';$('modePod').classList.add('sel');$('modePer').classList.remove('sel');};
   $('modePer').onclick=()=>{selectedMode='переводной';$('modePer').classList.add('sel');$('modePod').classList.remove('sel');};
   $('btnBot').onclick=()=>{botMode=true;netMode=false;lobby=null;startLocal(selectedMode,botCount+1,[NAME,...Array(botCount).fill(0).map((_,i)=>'Бот '+(i+1))]);};
   $('btnCreate').onclick=()=>createRoom();
-    $('btnJoin').onclick=()=>{
+  $('btnJoin').onclick=()=>{
     const code=$('roomInput').value.trim().toUpperCase();
     if(!code){showModal('Введите код','Попроси у хоста код комнаты и вставь сюда.',{close:true});return;}
-    if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком рекламы. Отключи блокировщик или попробуй другую сеть.',{close:true});return;}
-    enterGame();
-    setMessage('Подключение к комнате '+code+'...');
     joinRoom(code);
   };
   $('btnRec').onclick=()=>showRecords();
 
   function genCode(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<4;i++)c+=a[Math.floor(Math.random()*a.length)];return c;}
+
   function createRoom(){
-        if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован. Отключи блокировщик или смени сеть.',{close:true});return;}
+    if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком. Отключи блокировщик или смени сеть.',{close:true});return;}
     const code=genCode();
-    peer=new Peer(PREFIX+code, PEER_CONFIG);
+    peer=new Peer(PREFIX+code,PEER_CONFIG);
     peer.on('open',()=>{roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
-        peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
+    peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
     peer.on('connection',c=>{
       const seat=lobbyNames.length;
       if(seat>3){c.close();return;}
@@ -333,42 +319,47 @@
     });
     peer.on('error',e=>{if(e.type==='unavailable-id')createRoom();else showModal('Ошибка',e.type,{close:true});});
   }
-    function joinRoom(code,tryN){
+
+  function joinRoom(code,tryN){
+    code=(code||'').toUpperCase();
     if(!code)return;
     tryN=tryN||0;
+    if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком.',{close:true});return;}
+    enterGame();
+    setMessage('Подключение к комнате '+code+'... попытка '+(tryN+1));
     if(peer){try{peer.destroy();}catch(e){}}
     peer=new Peer(PEER_CONFIG);
     peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
     peer.on('open',()=>{
       const c=peer.connect(PREFIX+code,{reliable:true});
-      c.on('open',()=>{c.send({type:'hello',name:NAME});netMode=true;botMode=false;isHost=false;conns=[c];mySeat=null;enterGame();setMessage('Подключение к комнате '+code+'...');});
+      c.on('open',()=>{c.send({type:'hello',name:NAME});netMode=true;botMode=false;isHost=false;conns=[c];mySeat=null;enterGame();setMessage('Подключено! Ждём, пока хост начнёт...');});
       c.on('data',d=>guestData(d));
       c.on('close',()=>showModal('Соперник вышел','Соединение закрыто.',{close:true}));
     });
     peer.on('error',e=>{
       if(tryN<4&&['server-error','network','socket-error','socket-closed','peer-unavailable'].includes(e.type)){
-        setMessage('Сервер своенравит, попытка '+(tryN+2)+'...');
         setTimeout(()=>joinRoom(code,tryN+1),1500);
       }else{
-        showModal('Ошибка',e.type==='peer-unavailable'?'Комната не найдена':e.type,{close:true});
-                $('menuScreen').classList.add('active');$('gameScreen').classList.remove('active');
+        showModal('Не удалось войти',e.type==='peer-unavailable'?'Комната не найдена или уже закрыта.':'Ошибка сети: '+e.type,{close:true});
+        $('menuScreen').classList.add('active');$('gameScreen').classList.remove('active');
       }
     });
   }
+
   function hostData(c,d){
     if(d.type==='hello'&&!S){lobbyNames.push(d.name||'Гость');c.send({type:'lobby',names:lobbyNames,mode:selectedMode});broadcastLobby();renderLobby();}
     else if(d.type==='act'&&S){doAction(c.seat,d.act);}
     else if(d.type==='again'&&S){startLocal(S.mode,S.N,S.names);}
   }
   function guestData(d){
-    if(d.type==='lobby'){lobby=names2lobby(d.names);renderLobby();}
+    if(d.type==='lobby'){lobby=d.names;renderLobby();}
     if(d.type==='started'){mySeat=d.seat;needDeal=true;prevSig='';recorded=false;hideOverlay();}
     if(d.type==='state'){V=d.view;render();}
   }
-  function names2lobby(n){return n;}
-  function broadcastLobby(){conns.forEach(c=>c.conn?0:c.send({type:'lobby',names:lobbyNames,mode:selectedMode}));}
+  function broadcastLobby(){conns.forEach(c=>c.send({type:'lobby',names:lobbyNames,mode:selectedMode}));}
   function sendViews(){conns.forEach(c=>c.send({type:'state',view:view(S,c.seat)}));}
   function sendAct(a){if(conns[0]&&conns[0].open)conns[0].send({type:'act',act:a});}
+  function sendAgain(){if(conns[0]&&conns[0].open)conns[0].send({type:'again'});}
 
   function startLocal(mode,N,names){
     S=newState(mode,N);S.names=names;
@@ -378,7 +369,7 @@
     if(netMode&&isHost){conns.forEach((c,i)=>c.send({type:'started',seat:i+1}));sendViews();}
     maybeBot();
   }
-  $('btnStart').onclick=()=>{if(isHost&&lobbyNames.length>=2)startLocal(selectedMode,lobbyNames.length,lobbyNames);};
+  $('btnStart').onclick=()=>{if(isHost&&!S&&lobbyNames.length>=2)startLocal(selectedMode,lobbyNames.length,lobbyNames);};
   function enterGame(){$('menuScreen').classList.remove('active');$('gameScreen').classList.add('active');}
 
   function doAction(idx,act){
@@ -424,16 +415,11 @@
 
   /* модалки */
   function hideOverlay(){$('overlay').classList.remove('show');}
-  function showModal(t,x,b={}){$('modalTitle').textContent=t;$('modalText').textContent=x;$('recordsBox').innerHTML='';$('btnCopy').hidden=!b.copy;$('btnAgain').hidden=!b.again;$('btnClose').hidden=!b.close;$('overlay').classList.add('show');}
-    const TG_APP_LINK='https://t.me/Freegamedurak_bot/play'; // твой Direct Link из BotFather
-  const inviteLink=()=>TG_APP_LINK+'?startapp='+roomCode;
-  const siteLink=()=>location.origin+location.pathname+'?room='+roomCode;
-  function copyFeedback(btn){const t=btn.textContent;btn.textContent='Скопировано!';setTimeout(()=>btn.textContent=t,1200);}
+  function showModal(t,x,b={}){$('modalTitle').textContent=t;$('modalText').textContent=x;if(!b.records)$('recordsBox').innerHTML='';$('btnCopy').hidden=!b.copy;$('btnAgain').hidden=!b.again;$('btnClose').hidden=!b.close;$('overlay').classList.add('show');}
   $('btnCopy').onclick=e=>{navigator.clipboard.writeText(inviteLink());copyFeedback(e.target);};
   $('btnClose').onclick=()=>hideOverlay();
   $('btnAgain').onclick=()=>{hideOverlay();if(netMode&&!isHost)sendAgain();else startLocal(S.mode,S.N,S.names);};
-  function sendAgain(){if(conns[0]&&conns[0].open)conns[0].send({type:'again'});}
-    $('btnCode').onclick=()=>showModal('Комната '+roomCode,'Ссылка другу: '+inviteLink()+'  |  Сайт: '+siteLink()+'  |  Код вручную: '+roomCode,{copy:true,close:true});
+  $('btnCode').onclick=()=>showModal('Комната '+roomCode,'Ссылка другу: '+inviteLink()+'  |  Сайт: '+siteLink()+'  |  Код вручную: '+roomCode,{copy:true,close:true});
   $('btnPass').onclick=()=>act({type:'bito'});
   $('btnTake').onclick=()=>act({type:'take'});
   $('btnTransfer').onclick=()=>act({type:'transfer'});
@@ -458,15 +444,15 @@
     });
   }
   function renderLobby(){
-    const names=isHost?lobbyNames:(lobby||[NAME]);
+    const names=(isHost?lobbyNames:(lobby||[NAME])).filter(n=>n!==NAME);
     $('modeChip').textContent=selectedMode==='переводной'?'Переводной':'Подкидной';
     $('codeChip').hidden=!netMode;
     if(netMode)$('codeChip').innerHTML='Код: <span class="gold">'+roomCode+'</span>';
-    $('opps').innerHTML=names.slice(1).map(n=>`<div class="opp"><div>${n}</div><div class="backs"><div class="card back"></div></div></div>`).join('')||'<div class="opp">Пока никого</div>';
+    $('opps').innerHTML=names.map(n=>`<div class="opp"><div>${n}</div><div class="backs"><div class="card back"></div></div></div>`).join('')||'<div class="opp">Пока никого</div>';
     $('table').innerHTML='';$('playerHand').innerHTML='';
-    $('btnStart').hidden=!(isHost&&!S&&names.length>=2);
+    $('btnStart').hidden=!(isHost&&!S&&lobbyNames.length>=2);
     $('btnCode').hidden=!netMode;
-    setMessage(isHost?`Игроков: ${names.length}/4. Нажми «Старт».`:'Ждём, пока хост начнёт игру...');
+    setMessage(isHost?`Игроков: ${lobbyNames.length}/4. Нажми «Старт».`:'Ждём, пока хост начнёт игру...');
     $('btnPass').disabled=true;$('btnTake').disabled=true;$('btnTransfer').hidden=true;
     $('trumpMini').style.visibility='hidden';$('deckCount').textContent='';
   }
@@ -483,9 +469,7 @@
     if(netMode)$('codeChip').innerHTML='Код: <span class="gold">'+roomCode+'</span>';
     $('btnCode').hidden=!netMode;
     $('btnStart').hidden=true;
-
     $('opps').innerHTML=V.others.map(o=>`<div class="opp ${o.role==='А'?'atk':o.role==='З'?'def':''}"><div>${o.name} ${o.role?`<span class="tag">${o.role}</span>`:''}</div><div class="backs">${Array(Math.min(o.count,6)).fill('<div class="card back"></div>').join('')}</div><div>${o.count} карт</div></div>`).join('');
-
     const sig=V.table.map(p=>p.defense?2:1).join('');
     const tz=$('table');tz.innerHTML='';
     V.table.forEach(p=>{
@@ -500,7 +484,6 @@
       else if(prevSig[pi]==='1'&&sig[pi]==='2')pr.querySelector('.defense').classList.add('pop-in');
     });
     prevSig=sig;
-
     const hand=$('playerHand');hand.innerHTML='';
     V.hand.forEach((c,i)=>{
       const el=cardEl(c,V.trump.s);
@@ -509,22 +492,19 @@
       hand.appendChild(el);
     });
     applyFan(hand,5);
-
     $('btnPass').disabled=!V.canBito;
     $('btnTake').disabled=!V.canTake;
     $('btnTransfer').hidden=V.mode!=='переводной';
     $('btnTransfer').disabled=!V.canTransfer;
-
     if(V.over&&!recorded){
       recorded=true;
       const res=V.over.draw?'draw':(V.over.durak===V.you?'loss':'win');
       recordResult(res);
       if(res==='win')sfx.win();else if(res==='loss')sfx.lose();else sfx.bit();
       showModal(res==='draw'?'🤝 Ничья':res==='win'?'🏆 Победа!':'😵 Поражение',
-        res==='draw'?'Все избавились от карт одновременно.':res==='win'?'Ты не дурак! Отличная игра.':`Дурак: ${V.names[V.over.durak]}. Это ${V.over.durak===V.you?'ты':'соперник'}.`,
+        res==='draw'?'Все избавились от карт одновременно.':res==='win'?'Ты не дурак! Отличная игра.':`Дурак: ${V.names[V.over.durak]}.`,
         {again:true});
     }else if(!needDeal)setTurnMsg();
-
     if(needDeal){needDeal=false;dealAnim();}
   }
   function setTurnMsg(){
@@ -565,6 +545,13 @@
     const cn=()=>{if(ghost){ghost.remove();el.style.visibility='';}};
     el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',cn);
   }
+
+  /* авто-вход по ссылке ?room=КОД или t.me/бот/…?startapp=КОД */
+  (function(){
+    const p=(new URLSearchParams(location.search).get('room')
+      || (window.Telegram&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.start_param)||'').toUpperCase();
+    if(p){$('roomInput').value=p;setTimeout(()=>joinRoom(p),500);}
+  })();
 
   updateStats();
 </script>
