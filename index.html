@@ -307,9 +307,9 @@
   function createRoom(){
     if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком. Отключи блокировщик или смени сеть.',{close:true});return;}
     const code=genCode();
-    peer=new Peer(PREFIX+code,PEER_CONFIG);
-    peer.on('open',()=>{roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
-    peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
+       peer=new Peer(PREFIX+code,PEER_CONFIG);
+    const timer=setTimeout(()=>showModal('Не удалось создать комнату','Сервер знакомства не отвечает. Проверь Render или смени сеть.',{close:true}),9000);
+    peer.on('open',()=>{clearTimeout(timer);roomCode=code;
     peer.on('connection',c=>{
       const seat=lobbyNames.length;
       if(seat>3){c.close();return;}
@@ -320,29 +320,43 @@
     peer.on('error',e=>{if(e.type==='unavailable-id')createRoom();else showModal('Ошибка',e.type,{close:true});});
   }
 
-  function joinRoom(code,tryN){
+    function joinRoom(code,tryN){
     code=(code||'').toUpperCase();
     if(!code)return;
     tryN=tryN||0;
     if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком.',{close:true});return;}
     enterGame();
-    setMessage('Подключение к комнате '+code+'... попытка '+(tryN+1));
+    setMessage('Подключение к комнате '+code+'... попытка '+(tryN+1)+' из 5');
+    try{fetch('https://'+PEER_CONFIG.host+'/',{mode:'no-cors'}).catch(()=>{});}catch(e){} // будим бесплатный Render
     if(peer){try{peer.destroy();}catch(e){}}
+    let done=false;
+    const fail=msg=>{
+      if(done)return;
+      done=true;
+      if(tryN<4){setTimeout(()=>joinRoom(code,tryN+1),1000);}
+      else{
+        showModal('Не удалось войти',msg||'Сервер знакомства не отвечает. Проверь, что Render Live, или попробуй другую сеть.',{close:true});
+        $('menuScreen').classList.add('active');$('gameScreen').classList.remove('active');
+      }
+    };
+    const timer=setTimeout(()=>fail(),9000); // не висим вечно на одной попытке
     peer=new Peer(PEER_CONFIG);
     peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
     peer.on('open',()=>{
       const c=peer.connect(PREFIX+code,{reliable:true});
-      c.on('open',()=>{c.send({type:'hello',name:NAME});netMode=true;botMode=false;isHost=false;conns=[c];mySeat=null;enterGame();setMessage('Подключено! Ждём, пока хост начнёт...');});
+      c.on('open',()=>{
+        done=true;clearTimeout(timer);
+        c.send({type:'hello',name:NAME});
+        netMode=true;botMode=false;isHost=false;conns=[c];mySeat=null;
+        enterGame();setMessage('Подключено! Ждём, пока хост начнёт...');
+      });
       c.on('data',d=>guestData(d));
       c.on('close',()=>showModal('Соперник вышел','Соединение закрыто.',{close:true}));
     });
     peer.on('error',e=>{
-      if(tryN<4&&['server-error','network','socket-error','socket-closed','peer-unavailable'].includes(e.type)){
-        setTimeout(()=>joinRoom(code,tryN+1),1500);
-      }else{
-        showModal('Не удалось войти',e.type==='peer-unavailable'?'Комната не найдена или уже закрыта.':'Ошибка сети: '+e.type,{close:true});
-        $('menuScreen').classList.add('active');$('gameScreen').classList.remove('active');
-      }
+      clearTimeout(timer);
+      if(e.type==='peer-unavailable')fail('Комната не найдена или уже закрыта.');
+      else fail();
     });
   }
 
