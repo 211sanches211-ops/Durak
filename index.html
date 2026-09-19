@@ -6,6 +6,7 @@
 <title>Дурак</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script>if(!window.Peer){document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');}</script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#071522;--panel:#12293c;--pb:#20415c;--row:#0e2233;--text:#cfe6ff;--muted:#8aa7bf;--gold:#f6c453;--gd:#f0a92e;--cw:64px;--ch:92px;}
@@ -306,11 +307,19 @@
   $('modePer').onclick=()=>{selectedMode='переводной';$('modePer').classList.add('sel');$('modePod').classList.remove('sel');};
   $('btnBot').onclick=()=>{botMode=true;netMode=false;lobby=null;startLocal(selectedMode,botCount+1,[NAME,...Array(botCount).fill(0).map((_,i)=>'Бот '+(i+1))]);};
   $('btnCreate').onclick=()=>createRoom();
-  $('btnJoin').onclick=()=>joinRoom($('roomInput').value.trim().toUpperCase());
+    $('btnJoin').onclick=()=>{
+    const code=$('roomInput').value.trim().toUpperCase();
+    if(!code){showModal('Введите код','Попроси у хоста код комнаты и вставь сюда.',{close:true});return;}
+    if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком рекламы. Отключи блокировщик или попробуй другую сеть.',{close:true});return;}
+    enterGame();
+    setMessage('Подключение к комнате '+code+'...');
+    joinRoom(code);
+  };
   $('btnRec').onclick=()=>showRecords();
 
   function genCode(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<4;i++)c+=a[Math.floor(Math.random()*a.length)];return c;}
   function createRoom(){
+        if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован. Отключи блокировщик или смени сеть.',{close:true});return;}
     const code=genCode();
     peer=new Peer(PREFIX+code, PEER_CONFIG);
     peer.on('open',()=>{roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
@@ -342,6 +351,7 @@
         setTimeout(()=>joinRoom(code,tryN+1),1500);
       }else{
         showModal('Ошибка',e.type==='peer-unavailable'?'Комната не найдена':e.type,{close:true});
+                $('menuScreen').classList.add('active');$('gameScreen').classList.remove('active');
       }
     });
   }
