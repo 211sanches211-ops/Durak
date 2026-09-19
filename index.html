@@ -397,7 +397,8 @@
 
   function createRoom(){
     if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком.',{close:true});return;}
-    const code=genCode();
+        const code=genCode();
+    try{fetch('https://'+PEER_CONFIG.host+'/',{mode:'no-cors'}).catch(()=>{});}catch(e){}
     peer=new Peer(PREFIX+code,PEER_CONFIG);
     const timer=setTimeout(()=>showModal('Не удалось создать комнату','Сервер знакомства не отвечает. Проверь Render или смени сеть.',{close:true}),9000);
     peer.on('open',()=>{clearTimeout(timer);roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
@@ -417,6 +418,7 @@
     if(!code)return;
     tryN=tryN||0;
     if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком.',{close:true});return;}
+        roomCode=code;netMode=true;
     enterGame();
     setMessage('Подключение к комнате '+code+'... попытка '+(tryN+1)+' из 5');
     try{fetch('https://'+PEER_CONFIG.host+'/',{mode:'no-cors'}).catch(()=>{});}catch(e){}
