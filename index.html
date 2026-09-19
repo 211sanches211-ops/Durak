@@ -268,7 +268,8 @@
 
   const createDeck=()=>{const d=[];for(const s of SUITS)for(const v of VALUES)d.push({s:s,v:v});return d;};
   const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;};
-  const canBeat=(a,d,tr)=>d.s===a.s?d.v>a.v:(d.s===tr&&a.s!==tr);
+    const canBeat=(a,d,tr)=>{const ts=(tr&&tr.s)?tr.s:tr;return d.s===a.s?d.v>a.v:(d.s===ts&&a.s!==ts);};
+
   function nextActive(st,from){for(let k=1;k<=st.N;k++){const i=(from+k)%st.N;if(!st.out[i])return i;}return -1;}
   function newState(mode,N){
     const deck=shuffle(createDeck()),trump=deck[deck.length-1],hands=[];
