@@ -148,6 +148,13 @@
 <script>
   const $=id=>document.getElementById(id);
   const CW=64,CH=92,PREFIX='DURAK-';
+  const PEER_CONFIG = {
+  host: 'durak-peer.onrender.com',  // ← подставь свой домен с Render
+  port: 443,
+  path: '/',
+  secure: true,
+  debug: 0
+};
   const L=v=>({11:'J',12:'Q',13:'K',14:'A'}[v]||String(v));
   const SUITS=['♠','♥','♦','♣'],VALUES=[6,7,8,9,10,11,12,13,14];
   const rectOf=el=>{const r=el.getBoundingClientRect();return{left:r.left,top:r.top,width:r.width,height:r.height};};
@@ -305,7 +312,7 @@
   function genCode(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<4;i++)c+=a[Math.floor(Math.random()*a.length)];return c;}
   function createRoom(){
     const code=genCode();
-    peer=new Peer(PREFIX+code);
+    peer=new Peer(PREFIX+code, PEER_CONFIG);
     peer.on('open',()=>{roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
         peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
     peer.on('connection',c=>{
@@ -321,7 +328,7 @@
     if(!code)return;
     tryN=tryN||0;
     if(peer){try{peer.destroy();}catch(e){}}
-    peer=new Peer();
+    peer=new Peer(PEER_CONFIG);
     peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
     peer.on('open',()=>{
       const c=peer.connect(PREFIX+code,{reliable:true});
