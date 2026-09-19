@@ -400,90 +400,92 @@
 
   function genCode(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<4;i++)c+=a[Math.floor(Math.random()*a.length)];return c;}
 
+    let netWs=null,netId=null,netHandlers=null,hostId=null;
+  function netStart(id,h){
+    netStop();
+    netHandlers=h;
+    netId=id||('P'+Math.random().toString(36).slice(2,10));
+    netWs=new WebSocket('wss://'+PEER_CONFIG.host+'/');
+    netWs.onopen=()=>{netWs.send(JSON.stringify({type:'reg',id:netId}));if(h.onopen)h.onopen();};
+    netWs.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch{return;}
+      if(m.type==='msg'&&netHandlers.onmsg)netHandlers.onmsg(m.from,m.payload);
+      if(m.type==='routeerr'&&netHandlers.onrouteerr)netHandlers.onrouteerr(m.to);
+    };
+    netWs.onerror=()=>{if(netHandlers.onerr)netHandlers.onerr('websocket error');};
+    netWs.onclose=()=>{if(netHandlers.onclose)netHandlers.onclose();};
+  }
+  function netSend(to,payload){if(netWs&&netWs.readyState===1)netWs.send(JSON.stringify({type:'route',to:to,payload:payload}));}
+  function netStop(){if(netWs){try{netWs.onclose=null;netWs.close();}catch(e){}netWs=null;}}
+  window.addEventListener('pagehide',()=>{if(netWs&&netWs.readyState===1&&hostId)netWs.send(JSON.stringify({type:'route',to:hostId,payload:{type:'bye'}}));});
+
   function createRoom(){
-    if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком.',{close:true});return;}
-        const code=genCode();
+    const code=genCode();
     try{fetch('https://'+PEER_CONFIG.host+'/',{mode:'no-cors'}).catch(()=>{});}catch(e){}
-    peer=new Peer(PREFIX+code,PEER_CONFIG);
-    const timer=setTimeout(()=>showModal('Не удалось создать комнату','Сервер знакомства не отвечает. Проверь Render или смени сеть.',{close:true}),9000);
-    peer.on('open',()=>{clearTimeout(timer);roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
-    peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
-        peer.on('connection',c=>{
-      setMessage('Соперник стучится... устанавливаю канал.');
-      c.on('error',e=>showModal('Ошибка канала','WebRTC не пробился: '+(e.type||e)+'. Обнови оба устройства до v10.',{close:true}));
-      const seat=lobbyNames.length;
-      if(seat>3){c.close();return;}
-      c.seat=seat;conns.push(c);
-      c.on('data',d=>hostData(c,d));
-      c.on('close',()=>{conns=conns.filter(x=>x!==c);if(!S)broadcastLobby();});
+    netStart(PREFIX+code,{
+      onopen:()=>{roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];conns=[];enterGame();renderLobby();requestWakeLock();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});},
+      onmsg:(from,d)=>{
+        let c=conns.find(x=>x.id===from);
+        if(d.type==='hello'&&!S){
+          if(!c){
+            if(lobbyNames.length>3){netSend(from,{type:'full'});return;}
+            c={id:from,seat:lobbyNames.length};conns.push(c);lobbyNames.push(d.name||'Гость');
+          }
+          netSend(from,{type:'lobby',names:lobbyNames,mode:selectedMode});
+          broadcastLobby();renderLobby();
+        }
+        else if(d.type==='act'&&S&&c){doAction(c.seat,d.act);}
+        else if(d.type==='again'&&S){startLocal(S.mode,S.N,S.names);}
+        else if(d.type==='bye'){
+          conns=conns.filter(x=>x.id!==from);
+          if(S){S=null;V=null;showModal('Соперник вышел','Партия прервана.',{close:true});renderLobby();}
+          else{lobbyNames=lobbyNames.filter((n,i)=>i===0||conns.some(cc=>cc.seat===i));broadcastLobby();renderLobby();}
+        }
+      },
+      onerr:t=>showModal('Ошибка сети',t,{close:true}),
+      onclose:()=>{if(isHost&&!S){conns=[];renderLobby();}}
     });
-    peer.on('error',e=>{clearTimeout(timer);if(e.type==='unavailable-id')createRoom();else showModal('Ошибка',e.type,{close:true});});
   }
 
   function joinRoom(code,tryN){
     code=(code||'').toUpperCase();
     if(!code)return;
     tryN=tryN||0;
-    if(typeof Peer==='undefined'){showModal('Библиотека не загрузилась','PeerJS заблокирован сетью или блокировщиком.',{close:true});return;}
-        roomCode=code;netMode=true;
+    roomCode=code;netMode=true;
     enterGame();
     setMessage('Подключение к комнате '+code+'... попытка '+(tryN+1)+' из 5');
     try{fetch('https://'+PEER_CONFIG.host+'/',{mode:'no-cors'}).catch(()=>{});}catch(e){}
-    if(peer){try{peer.destroy();}catch(e){}}
+    netStop();
     let done=false;
     const fail=msg=>{
-      if(done)return;
-      done=true;
-      if(tryN<4){setTimeout(()=>joinRoom(code,tryN+1),1000);}
-      else{
-        showModal('Не удалось войти',msg||'Сервер знакомства не отвечает. Проверь, что Render Live, или попробуй другую сеть.',{close:true});
-        $('menuScreen').classList.add('active');
-        $('gameScreen').classList.remove('active');
-      }
+      if(done)return;done=true;
+      if(tryN<4)setTimeout(()=>joinRoom(code,tryN+1),1000);
+      else{showModal('Не удалось войти',msg||'Комната не найдена или сервер не отвечает.',{close:true});$('menuScreen').classList.add('active');$('gameScreen').classList.remove('active');}
     };
     const timer=setTimeout(()=>fail(),9000);
-    peer=new Peer(PEER_CONFIG);
-    peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
-    peer.on('open',()=>{
-      const c=peer.connect(PREFIX+code,{reliable:true});
-      c.on('open',()=>{
-        done=true;clearTimeout(timer);
-        c.send({type:'hello',name:NAME});
-        netMode=true;botMode=false;isHost=false;conns=[c];mySeat=null;
-        enterGame();setMessage('Подключено! Ждём, пока хост начнёт...');
-      });
-            c.on('data',d=>guestData(d));
-      c.on('error',e=>showModal('Ошибка канала','WebRTC не пробился: '+(e.type||e)+'. Обнови оба устройства до v10.',{close:true}));
-      c.on('close',()=>showModal('Соперник вышел','Соединение закрыто.',{close:true}));
-    });
-    peer.on('error',e=>{
-      clearTimeout(timer);
-      if(e.type==='peer-unavailable')fail('Комната не найдена или уже закрыта.');
-      else fail();
+    netStart(null,{
+      onopen:()=>{netSend(PREFIX+code,{type:'hello',name:NAME});},
+      onrouteerr:()=>{clearTimeout(timer);fail('Комната не найдена или уже закрыта.');},
+      onmsg:(from,d)=>{
+        if(d.type==='lobby'){done=true;clearTimeout(timer);isHost=false;botMode=false;hostId=from;lobby=d.names;enterGame();renderLobby();setMessage('Подключено! Ждём, пока хост начнёт...');requestWakeLock();}
+        else if(d.type==='started'){done=true;clearTimeout(timer);mySeat=d.seat;needDeal=true;prevSig='';recorded=false;hideOverlay();}
+        else if(d.type==='state'){V=d.view;render();}
+        else if(d.type==='full'){clearTimeout(timer);fail('Комната занята (4/4).');}
+      },
+      onclose:()=>{if(!done)fail('Соединение закрыто.');else showModal('Соперник вышел','Соединение закрыто.',{close:true});}
     });
   }
 
-  function hostData(c,d){
-    if(d.type==='hello'&&!S){lobbyNames.push(d.name||'Гость');c.send({type:'lobby',names:lobbyNames,mode:selectedMode});broadcastLobby();renderLobby();}
-    else if(d.type==='act'&&S){doAction(c.seat,d.act);}
-    else if(d.type==='again'&&S){startLocal(S.mode,S.N,S.names);}
-  }
-  function guestData(d){
-    if(d.type==='lobby'){lobby=d.names;renderLobby();}
-    if(d.type==='started'){mySeat=d.seat;needDeal=true;prevSig='';recorded=false;hideOverlay();}
-    if(d.type==='state'){V=d.view;render();}
-  }
-  function broadcastLobby(){conns.forEach(c=>c.send({type:'lobby',names:lobbyNames,mode:selectedMode}));}
-  function sendViews(){conns.forEach(c=>c.send({type:'state',view:view(S,c.seat)}));}
-  function sendAct(a){if(conns[0]&&conns[0].open)conns[0].send({type:'act',act:a});}
-  function sendAgain(){if(conns[0]&&conns[0].open)conns[0].send({type:'again'});}
+  function broadcastLobby(){conns.forEach(c=>netSend(c.id,{type:'lobby',names:lobbyNames,mode:selectedMode}));}
+  function sendViews(){conns.forEach(c=>netSend(c.id,{type:'state',view:view(S,c.seat)}));}
+  function sendAct(a){netSend(hostId||PREFIX+roomCode,{type:'act',act:a});}
+  function sendAgain(){netSend(hostId||PREFIX+roomCode,{type:'again'});}
 
   function startLocal(mode,N,names){
     S=newState(mode,N);S.names=names;
     needDeal=true;prevSig='';recorded=false;
     enterGame();
     V=view(S,0);render();
-    if(netMode&&isHost){conns.forEach((c,i)=>c.send({type:'started',seat:i+1}));sendViews();}
+      if(netMode&&isHost){conns.forEach(c=>netSend(c.id,{type:'started',seat:c.seat}));sendViews();}
     maybeBot();
     requestWakeLock();
   }
@@ -590,7 +592,8 @@
     if(now-menuArm>3000){menuArm=now;$('btnMenu').textContent='Точно?';setTimeout(()=>{$('btnMenu').textContent='Меню';},3000);return;}
     $('btnMenu').textContent='Меню';menuArm=0;
     clearTimeout(botTimer);stopTimer();releaseWakeLock();
-    if(peer){try{peer.destroy();}catch(e){}}
+     if(peer){try{peer.destroy();}catch(e){}}
+    netStop();
     peer=null;conns=[];S=null;V=null;netMode=false;isHost=false;botMode=false;roomCode=null;lobby=null;lobbyNames=[NAME];prevSig='';recorded=false;needDeal=false;
     hideOverlay();
     $('gameScreen').classList.remove('active');
