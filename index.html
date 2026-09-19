@@ -191,7 +191,12 @@
 <script>
   const $=id=>document.getElementById(id);
   const CW=64,CH=92,PREFIX='DURAK-';
-  const PEER_CONFIG={host:'durak-peer.onrender.com',port:443,path:'/',secure:true,debug:0};
+   const PEER_CONFIG={host:'durak-peer.onrender.com',port:443,path:'/',secure:true,debug:0,config:{iceServers:[
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+  ]}};
   const TG_APP_LINK='https://t.me/Freegamedurak_bot/play';
   const L=v=>({11:'J',12:'Q',13:'K',14:'A'}[v]||String(v));
   const SUITS=['♠','♥','♦','♣'],VALUES=[6,7,8,9,10,11,12,13,14];
@@ -403,7 +408,9 @@
     const timer=setTimeout(()=>showModal('Не удалось создать комнату','Сервер знакомства не отвечает. Проверь Render или смени сеть.',{close:true}),9000);
     peer.on('open',()=>{clearTimeout(timer);roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
     peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
-    peer.on('connection',c=>{
+        peer.on('connection',c=>{
+      setMessage('Соперник стучится... устанавливаю канал.');
+      c.on('error',e=>showModal('Ошибка канала','WebRTC не пробился: '+(e.type||e)+'. Обнови оба устройства до v10.',{close:true}));
       const seat=lobbyNames.length;
       if(seat>3){c.close();return;}
       c.seat=seat;conns.push(c);
@@ -445,7 +452,8 @@
         netMode=true;botMode=false;isHost=false;conns=[c];mySeat=null;
         enterGame();setMessage('Подключено! Ждём, пока хост начнёт...');
       });
-      c.on('data',d=>guestData(d));
+            c.on('data',d=>guestData(d));
+      c.on('error',e=>showModal('Ошибка канала','WebRTC не пробился: '+(e.type||e)+'. Обнови оба устройства до v10.',{close:true}));
       c.on('close',()=>showModal('Соперник вышел','Соединение закрыто.',{close:true}));
     });
     peer.on('error',e=>{
