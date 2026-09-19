@@ -307,6 +307,7 @@
     const code=genCode();
     peer=new Peer(PREFIX+code);
     peer.on('open',()=>{roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
+        peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
     peer.on('connection',c=>{
       const seat=lobbyNames.length;
       if(seat>3){c.close();return;}
@@ -316,16 +317,26 @@
     });
     peer.on('error',e=>{if(e.type==='unavailable-id')createRoom();else showModal('Ошибка',e.type,{close:true});});
   }
-  function joinRoom(code){
+    function joinRoom(code,tryN){
     if(!code)return;
+    tryN=tryN||0;
+    if(peer){try{peer.destroy();}catch(e){}}
     peer=new Peer();
+    peer.on('disconnected',()=>{try{peer.reconnect();}catch(e){}});
     peer.on('open',()=>{
       const c=peer.connect(PREFIX+code,{reliable:true});
       c.on('open',()=>{c.send({type:'hello',name:NAME});netMode=true;botMode=false;isHost=false;conns=[c];mySeat=null;enterGame();setMessage('Подключение к комнате '+code+'...');});
       c.on('data',d=>guestData(d));
       c.on('close',()=>showModal('Соперник вышел','Соединение закрыто.',{close:true}));
     });
-    peer.on('error',e=>showModal('Ошибка',e.type==='peer-unavailable'?'Комната не найдена':e.type,{close:true}));
+    peer.on('error',e=>{
+      if(tryN<4&&['server-error','network','socket-error','socket-closed','peer-unavailable'].includes(e.type)){
+        setMessage('Сервер своенравит, попытка '+(tryN+2)+'...');
+        setTimeout(()=>joinRoom(code,tryN+1),1500);
+      }else{
+        showModal('Ошибка',e.type==='peer-unavailable'?'Комната не найдена':e.type,{close:true});
+      }
+    });
   }
   function hostData(c,d){
     if(d.type==='hello'&&!S){lobbyNames.push(d.name||'Гость');c.send({type:'lobby',names:lobbyNames,mode:selectedMode});broadcastLobby();renderLobby();}
