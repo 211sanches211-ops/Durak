@@ -138,7 +138,7 @@
     <p id="modalText"></p>
     <div id="recordsBox"></div>
     <div>
-      <button class="btn" id="btnCopy" hidden>Скопировать код</button>
+     <button class="btn" id="btnCopy" hidden>Скопировать ссылку</button>
       <button class="btn gold" id="btnAgain" hidden>Играть ещё</button>
       <button class="btn" id="btnClose" hidden>Закрыть</button>
     </div>
@@ -306,7 +306,7 @@
   function createRoom(){
     const code=genCode();
     peer=new Peer(PREFIX+code);
-    peer.on('open',()=>{roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Жди друзей или нажми «Старт». Код для входа: '+code,{copy:true,close:true});});
+    peer.on('open',()=>{roomCode=code;isHost=true;netMode=true;botMode=false;lobbyNames=[NAME];enterGame();renderLobby();showModal('Комната '+code,'Ссылка другу: '+inviteLink()+'  Жди друзей и жми «Старт».',{copy:true,close:true});});
     peer.on('connection',c=>{
       const seat=lobbyNames.length;
       if(seat>3){c.close();return;}
@@ -397,11 +397,15 @@
   /* модалки */
   function hideOverlay(){$('overlay').classList.remove('show');}
   function showModal(t,x,b={}){$('modalTitle').textContent=t;$('modalText').textContent=x;$('recordsBox').innerHTML='';$('btnCopy').hidden=!b.copy;$('btnAgain').hidden=!b.again;$('btnClose').hidden=!b.close;$('overlay').classList.add('show');}
-  $('btnCopy').onclick=()=>navigator.clipboard.writeText(roomCode||'');
+    const TG_APP_LINK='https://t.me/Freegamedurak_bot/play'; // твой Direct Link из BotFather
+  const inviteLink=()=>TG_APP_LINK+'?startapp='+roomCode;
+  const siteLink=()=>location.origin+location.pathname+'?room='+roomCode;
+  function copyFeedback(btn){const t=btn.textContent;btn.textContent='Скопировано!';setTimeout(()=>btn.textContent=t,1200);}
+  $('btnCopy').onclick=e=>{navigator.clipboard.writeText(inviteLink());copyFeedback(e.target);};
   $('btnClose').onclick=()=>hideOverlay();
   $('btnAgain').onclick=()=>{hideOverlay();if(netMode&&!isHost)sendAgain();else startLocal(S.mode,S.N,S.names);};
   function sendAgain(){if(conns[0]&&conns[0].open)conns[0].send({type:'again'});}
-  $('btnCode').onclick=()=>showModal('Комната '+roomCode,'Соперник вводит код в меню.',{copy:true,close:true});
+    $('btnCode').onclick=()=>showModal('Комната '+roomCode,'Ссылка другу: '+inviteLink()+'  |  Сайт: '+siteLink()+'  |  Код вручную: '+roomCode,{copy:true,close:true});
   $('btnPass').onclick=()=>act({type:'bito'});
   $('btnTake').onclick=()=>act({type:'take'});
   $('btnTransfer').onclick=()=>act({type:'transfer'});
