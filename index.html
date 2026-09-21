@@ -170,7 +170,7 @@
       <button class="btn" id="btnTransfer" hidden>Перевести</button>
            <button class="btn hint" id="btnHint">💡</button>
       <button class="btn emote" data-e="👋">👋</button>
-      <button class="btn emote" data-e="😅"></button>
+      <button class="btn emote" data-e="😅">😅</button>
       <button class="btn emote" data-e="🔥">🔥</button>
       <button class="btn emote" data-e="🎉">🎉</button>
       <button class="btn gold" id="btnStart" hidden>Старт</button>
@@ -435,7 +435,8 @@
         if(d.type==='hello'&&!S){
           if(!c){
             if(lobbyNames.length>3){netSend(from,{type:'full'});return;}
-            c={id:from,seat:lobbyNames.length};conns.push(c);lobbyNames.push(d.name||'Гость');
+                      let nm=d.name||'Гость';if(lobbyNames.includes(nm))nm=nm+' '+lobbyNames.length;
+            c={id:from,seat:lobbyNames.length};conns.push(c);lobbyNames.push(nm);
           }
           netSend(from,{type:'lobby',names:lobbyNames,mode:selectedMode});
           broadcastLobby();renderLobby();
@@ -607,15 +608,7 @@
     hideOverlay();
     $('gameScreen').classList.remove('active');
     $('menuScreen').classList.add('active');
-      function showBubble(t){const d=document.createElement('div');d.className='bubble';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2000);}
-  document.querySelectorAll('.emote').forEach(b=>b.onclick=()=>{
-    const t=b.dataset.e;showBubble(NAME+' '+t);
-    if(netMode&&isHost)conns.forEach(c=>netSend(c.id,{type:'emote',name:NAME,text:t}));
-    else if(netMode&&!isHost)netSend(hostId||PREFIX+roomCode,{type:'emote',name:NAME,text:t});
-  });
-
-  updateStats();
-    updateStats();
+         updateStats();
   };
   function setMessage(t){$('message').textContent=t;}
 
@@ -661,7 +654,8 @@
       setTimeout(()=>{el.remove();res();},350);
     });
   }
-  function renderLobby(){
+    function renderLobby(){
+    stopTimer();
     const names=(isHost?lobbyNames:(lobby||[NAME])).filter(n=>n!==NAME);
     $('modeChip').textContent=selectedMode==='переводной'?'Переводной':'Подкидной';
     $('codeChip').hidden=!netMode;
@@ -787,6 +781,9 @@
     if(p){$('roomInput').value=p;setTimeout(()=>joinRoom(p),500);}
   })();
 
+  updateStats();
+    function showBubble(t){const d=document.createElement('div');d.className='bubble';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2000);}
+  document.querySelectorAll('.emote').forEach(b=>{b.onclick=()=>{const t=b.dataset.e;showBubble(NAME+' '+t);if(netMode&&isHost)conns.forEach(c=>netSend(c.id,{type:'emote',name:NAME,text:t}));else if(netMode&&!isHost)netSend(hostId||PREFIX+roomCode,{type:'emote',name:NAME,text:t});};});
   updateStats();
 </script>
 </body>
