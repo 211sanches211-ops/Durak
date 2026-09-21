@@ -89,6 +89,9 @@
   .toggle::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;background:#fff;border-radius:50%;transition:.2s;}
   .toggle.on::after{left:25px;}
   [hidden]{display:none !important;}
+    .btn.emote{padding:11px 10px;font-size:16px;}
+  .bubble{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:1500;background:rgba(18,41,60,.95);border:2px solid var(--gold);border-radius:16px;padding:10px 18px;font-size:22px;font-weight:900;color:var(--text);animation:bub 2s ease forwards;pointer-events:none;}
+  @keyframes bub{0%{opacity:0;transform:translate(-50%,-30%) scale(.7);}15%{opacity:1;transform:translate(-50%,-50%) scale(1);}80%{opacity:1;}100%{opacity:0;transform:translate(-50%,-70%) scale(1);}}
 </style>
 </head>
 <body>
@@ -165,7 +168,11 @@
       <button class="btn" id="btnPass">Бито</button>
       <button class="btn" id="btnTake">Беру</button>
       <button class="btn" id="btnTransfer" hidden>Перевести</button>
-      <button class="btn hint" id="btnHint">💡</button>
+           <button class="btn hint" id="btnHint">💡</button>
+      <button class="btn emote" data-e="👋">👋</button>
+      <button class="btn emote" data-e="😅"></button>
+      <button class="btn emote" data-e="🔥">🔥</button>
+      <button class="btn emote" data-e="🎉">🎉</button>
       <button class="btn gold" id="btnStart" hidden>Старт</button>
       <button class="btn" id="btnCode" hidden>Код</button>
       <button class="btn" id="btnMenu">Меню</button>
@@ -435,6 +442,7 @@
         }
         else if(d.type==='act'&&S&&c){doAction(c.seat,d.act);}
         else if(d.type==='again'&&S){startLocal(S.mode,S.N,S.names);}
+                  else if(d.type==='emote'){showBubble((d.name||'Гость')+' '+d.text);conns.forEach(c=>{if(c.id!==from)netSend(c.id,{type:'emote',name:d.name,text:d.text});});}
         else if(d.type==='bye'){
           conns=conns.filter(x=>x.id!==from);
           if(S){S=null;V=null;showModal('Соперник вышел','Партия прервана.',{close:true});renderLobby();}
@@ -470,6 +478,7 @@
         else if(d.type==='started'){done=true;clearTimeout(timer);mySeat=d.seat;needDeal=true;prevSig='';recorded=false;hideOverlay();}
         else if(d.type==='state'){V=d.view;render();}
         else if(d.type==='full'){clearTimeout(timer);fail('Комната занята (4/4).');}
+                else if(d.type==='emote'){showBubble((d.name||'Соперник')+' '+d.text);}
       },
       onclose:()=>{if(!done)fail('Соединение закрыто.');else showModal('Соперник вышел','Соединение закрыто.',{close:true});}
     });
@@ -598,6 +607,14 @@
     hideOverlay();
     $('gameScreen').classList.remove('active');
     $('menuScreen').classList.add('active');
+      function showBubble(t){const d=document.createElement('div');d.className='bubble';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2000);}
+  document.querySelectorAll('.emote').forEach(b=>b.onclick=()=>{
+    const t=b.dataset.e;showBubble(NAME+' '+t);
+    if(netMode&&isHost)conns.forEach(c=>netSend(c.id,{type:'emote',name:NAME,text:t}));
+    else if(netMode&&!isHost)netSend(hostId||PREFIX+roomCode,{type:'emote',name:NAME,text:t});
+  });
+
+  updateStats();
     updateStats();
   };
   function setMessage(t){$('message').textContent=t;}
