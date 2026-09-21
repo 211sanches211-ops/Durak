@@ -310,7 +310,10 @@
           const ranks=st.table.map(p=>p.attack.v),nd=nextActive(st,idx);
           res.canTransfer=nd>=0&&st.hands[idx].some(c=>ranks.includes(c.v))&&(st.table.length+1)<=Math.min(6,st.hands[nd].length);
         }
-      }
+         }
+    }else if(st.table.length>0){
+      const ranks2=ranksOnTable(st),defended2=st.table.filter(p=>p.defense).length,maxA2=Math.min(6,defended2+st.hands[st.defender].length);
+      st.hands[idx].forEach((c,i)=>{if(ranks2.has(c.v)&&st.table.length<maxA2)res.legal.push(i);});
     }
     return res;
   }
@@ -335,8 +338,8 @@
     if(act.type==='play'){
       if(!l.legal.includes(act.index))return false;
       const card=st.hands[idx].splice(act.index,1)[0];
-      if(st.attacker===idx)st.table.push({attack:card,defense:null});
-      else st.table.find(p=>!p.defense).defense=card;
+           if(st.defender===idx)st.table.find(p=>!p.defense).defense=card;
+      else st.table.push({attack:card,defense:null});
       return true;
     }
     if(act.type==='bito'){
@@ -560,6 +563,7 @@
     const undef=S.table.some(p=>!p.defense);
     if(isBot(S.attacker)&&!undef){const l=legalMoves(S,S.attacker);if(l.legal.length||l.canBito)seat=S.attacker;}
     if(seat<0&&isBot(S.defender)&&undef)seat=S.defender;
+        if(seat<0&&S.table.length>0){for(let i=1;i<S.N;i++){if(isBot(i)&&i!==S.attacker&&i!==S.defender){const l=legalMoves(S,i);if(l.legal.length){seat=i;break;}}}}
     if(seat>=0)botTimer=setTimeout(()=>botAct(seat),650);
   }
   function botAct(seat){
@@ -576,7 +580,12 @@
       if(l.legal.length){
         const pick=l.legal.slice().sort((a,b)=>{const A=S.hands[seat][a],B=S.hands[seat][b];return (A.s===S.trump.s?1:0)-(B.s===S.trump.s?1:0)||A.v-B.v;})[0];
         doAction(seat,{type:'play',index:pick});
-      }else doAction(seat,{type:'take'});
+           }else doAction(seat,{type:'take'});
+    }else{
+      if(S.table.length>0&&l.legal.length){
+        const pick=l.legal.slice().sort((a,b)=>{const A=S.hands[seat][a],B=S.hands[seat][b];return (A.s===S.trump.s?1:0)-(B.s===S.trump.s?1:0)||A.v-B.v;})[0];
+        doAction(seat,{type:'play',index:pick});
+      }
     }
   }
 
@@ -623,7 +632,7 @@
       else if(t.attack.s===V.trump.s)why='Атака козырем ('+V.trump.s+'): побьёт только козырь старше '+L(t.attack.v)+'.';
       else why='Нужна карта масти '+t.attack.s+' старше '+L(t.attack.v)+' или любой козырь ('+V.trump.s+').';
       setMessage('❌ '+L(c.v)+c.s+' не бьёт '+L(t.attack.v)+t.attack.s+'. '+why);
-    }else if(V.attacker===V.you){
+      }else if(V.attacker===V.you||V.defender!==V.you){
       setMessage('❌ Подкидывать можно только карты тех же достоинств, что уже на столе.');
     }else{
       setMessage('❌ Сейчас не твой ход.');
@@ -731,9 +740,10 @@
     }else if(!needDeal){setTurnMsg();startTimer();}
     if(needDeal){needDeal=false;dealAnim();}
   }
-  function setTurnMsg(){
+    function setTurnMsg(){
     if(V.attacker===V.you)setMessage('Твой ход: атакуй или подкидывай.');
     else if(V.defender===V.you&&V.table.some(p=>!p.defense))setMessage('Отбейся, возьми или переведи.');
+    else if(V.table.length>0&&V.legal.length)setMessage(V.names[V.attacker]+' атакует на '+V.names[V.defender]+'. Можешь подкинуть карты того же достоинства.');
     else setMessage(V.names[V.attacker]+' атакует на '+V.names[V.defender]+'...');
   }
   async function dealAnim(){
