@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Паук</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#071522;--panel:#12293c;--row:#0e2233;--text:#cfe6ff;--muted:#8aa7bf;--gold:#f6c453;--gd:#f0a92e;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{margin:0;min-height:100vh;background:radial-gradient(1100px 600px at 50% -10%,#0d2438,var(--bg) 65%);color:var(--text);font-family:'Nunito',system-ui,sans-serif;font-weight:700;user-select:none;}
+.wrap{max-width:760px;margin:0 auto;padding:10px;}
+h1{text-align:center;font-size:22px;font-weight:900;color:var(--gold);margin:6px 0 10px;text-shadow:0 2px 0 rgba(0,0,0,.45);}
+.panel{background:var(--panel);border:1px solid #20415c;border-radius:14px;}
+.top{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:8px;margin-bottom:8px;}
+.chip{background:var(--row);border:1px solid #1c3a54;border-radius:10px;padding:6px 10px;font-size:12px;color:var(--muted);}
+.chip .gold{color:var(--gold);font-weight:900;}
+.btn{font-family:inherit;font-weight:900;font-size:13px;color:var(--text);background:linear-gradient(180deg,#21425f,#17334b);border:1px solid #2c4d6b;border-radius:12px;padding:10px 14px;cursor:pointer;margin:2px;}
+.btn.gold{background:linear-gradient(180deg,#ffd35e,var(--gd));color:#173049;border:none;}
+.msg{min-height:34px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;padding:6px;margin-bottom:8px;text-align:center;}
+#cols{display:flex;gap:6px;overflow-x:auto;padding:8px 4px 20px;}
+.col{flex:0 0 auto;width:52px;min-height:320px;background:rgba(255,255,255,.05);border-radius:10px;padding:4px 4px 12px;display:flex;flex-direction:column;align-items:center;}
+.mc{width:44px;height:58px;border-radius:7px;background:linear-gradient(180deg,#fff,#e6edf4);color:#1c2b3a;border:1px solid #b9c7d4;font-weight:900;font-size:12px;padding:3px 4px;margin-top:-40px;box-shadow:0 2px 4px rgba(0,0,0,.3);}
+.col .mc:first-child{margin-top:0;}
+.mc.dn{background:repeating-linear-gradient(45deg,#1d5d8f,#1d5d8f 6px,#16486e 6px,#16486e 12px);border-color:#2c4d6b;margin-top:-46px;color:transparent;}
+.mc.red{color:#c62828;}
+.mc.sel{outline:2px solid var(--gold);box-shadow:0 0 12px rgba(246,196,83,.5);}
+.overlay{position:fixed;inset:0;background:rgba(4,10,18,.75);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.25s;z-index:50;}
+.overlay.show{opacity:1;pointer-events:auto;}
+.modal{width:min(92vw,340px);padding:22px;text-align:center;border-radius:18px;}
+.modal h2{color:var(--gold);font-size:24px;font-weight:900;margin:0 0 8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🕷️ Паук</h1>
+<div class="top panel">
+  <div class="chip">Ходы: <span class="gold" id="mMoves">0</span></div>
+  <div class="chip">Собрано: <span class="gold" id="mDone">0</span>/8</div>
+  <div class="chip">В колоде: <span class="gold" id="mStock">50</span></div>
+  <div class="chip">Побед: <span class="gold" id="mWins">0</span></div>
+</div>
+<div class="top" style="padding:0;background:none;border:none;">
+  <button class="btn" id="bDeal">Раздать из колоды</button>
+  <button class="btn" id="bNew">Новая игра</button>
+  <button class="btn" id="bSuits">Сложность: 1 масть</button>
+  <button class="btn gold" id="bMenu">Меню</button>
+</div>
+<div class="msg panel" id="msg"></div>
+<div id="cols"></div>
+</div>
+<div class="overlay" id="ov"><div class="modal panel"><h2 id="ovT"></h2><p id="ovP"></p><div><button class="btn gold" id="ovB">Ещё раз</button><button class="btn" id="ovM">В меню</button></div></div></div>
+<script>
+  const $=id=>document.getElementById(id);
+  const L=v=>({1:'A',11:'J',12:'Q',13:'K'}[v]||String(v));
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;};
+  let cols=[],stock=[],moves=0,done=0,sel=null,nSuits=1,wins=+(localStorage.getItem('spiderWins')||0);
+
+  function newGame(){
+    const pool=nSuits===1?['♠']:(nSuits===2?['♠','♥']:['♠','♥','♦','♣']);
+    const deck=[];
+    for(let d=0;d<8;d++){const s=pool[d%pool.length];for(let v=1;v<=13;v++)deck.push({v:v,s:s,up:false});}
+    shuffle(deck);
+    cols=Array.from({length:10},()=>[]);
+    let k=0;
+    for(let c=0;c<10;c++){const n=c<4?6:5;for(let i=0;i<n;i++)cols[c].push(deck[k++]);}
+    cols.forEach(col=>{col[col.length-1].up=true;});
+    stock=deck.slice(k);moves=0;done=0;sel=null;
+    setMsg('Собирай цепочки одной масти K→Q→…→A. Тапни карту, затем колонку‑приёмник.');
+    render();
+  }
+  function runValid(col,i){for(let j=i;j<col.length;j++){const c=col[j];if(!c.up)return false;if(j>i){const p=col[j-1];if(c.s!==p.s||c.v!==p.v-1)return false;}}return true;}
+  function canDrop(run,col){if(!col.length)return true;return col[col.length-1].v===run[0].v+1;}
+  function checkDone(ci){
+    const col=cols[ci];
+    if(col.length<13)return;
+    const t=col.slice(-13);
+    for(let i=0;i<13;i++){if(!t[i].up||t[i].s!==t[0].s||t[i].v!==13-i)return;}
+    cols[ci]=col.slice(0,-13);done++;
+    if(cols[ci].length&&!cols[ci][cols[ci].length-1].up)cols[ci][cols[ci].length-1].up=true;
+    setMsg('✅ Последовательность собрана! Осталось '+(8-done)+'.');
+    if(done===8){wins++;localStorage.setItem('spiderWins',wins);show('🏆 Победа!','Паук собран за '+moves+' ходов.');}
+  }
+  function show(t,p){$('ovT').textContent=t;$('ovP').textContent=p;$('ov').classList.add('show');}
+  function setMsg(t){$('msg').textContent=t;}
+  function deal(){
+    if(!stock.length){setMsg('Колода пуста.');return;}
+    if(cols.some(c=>!c.length)){setMsg('Сначала заполни пустые колонки.');return;}
+    for(let c=0;c<10;c++){const card=stock.pop();card.up=true;cols[c].push(card);}
+    moves++;for(let c=0;c<10;c++)checkDone(c);
+    render();
+  }
+  function doMove(c){
+    const run=cols[sel.c].slice(sel.i);
+    cols[sel.c].splice(sel.i);
+    cols[c]=cols[c].concat(run);
+    const pc=cols[sel.c];
+    if(pc.length&&!pc[pc.length-1].up)pc[pc.length-1].up=true;
+    moves++;sel=null;checkDone(c);render();
+  }
+  function tap(c,i){
+    const col=cols[c];
+    if(!col.length){if(sel){doMove(c);}return;}
+    if(sel){
+      if(sel.c===c&&sel.i===i){sel=null;render();return;}
+      const run=cols[sel.c].slice(sel.i);
+      if(canDrop(run,col)){doMove(c);return;}
+      setMsg('Сюда нельзя: нужна карта на очко старше любой масти или пустая колонка.');
+      sel=null;
+    }
+    const card=col[i];
+    if(!card.up){setMsg('Выбери открытую карту.');render();return;}
+    if(!runValid(col,i)){setMsg('Брать можно только цепочку одной масти по убыванию.');render();return;}
+    sel={c:c,i:i};setMsg('Куда переложить? Тапни колонку.');render();
+  }
+  function render(){
+    $('mMoves').textContent=moves;$('mDone').textContent=done;$('mStock').textContent=stock.length;$('mWins').textContent=wins;
+    const box=$('cols');box.innerHTML='';
+    cols.forEach((col,c)=>{
+      const colEl=document.createElement('div');colEl.className='col';
+      colEl.addEventListener('click',e=>{if(e.target===colEl)tap(c,0);});
+      col.forEach((card,i)=>{
+        const el=document.createElement('div');
+        el.className='mc'+(card.up?'':' dn')+((card.up&&(card.s==='♥'||card.s==='♦'))?' red':'');
+        if(card.up){
+          el.textContent=L(card.v)+card.s;
+          if(sel&&sel.c===c&&i>=sel.i)el.classList.add('sel');
+        }
+        el.addEventListener('click',ev=>{ev.stopPropagation();tap(c,i);});
+        colEl.appendChild(el);
+      });
+      box.appendChild(colEl);
+    });
+  }
+  $('bDeal').onclick=deal;
+  $('bNew').onclick=()=>{$('ov').classList.remove('show');newGame();};
+  $('bSuits').onclick=()=>{nSuits=nSuits===1?2:(nSuits===2?4:1);$('bSuits').textContent='Сложность: '+nSuits+(nSuits===1?' масть':(nSuits===2?' масти':' мастей'));newGame();};
+  $('bMenu').onclick=()=>{location.href='index.html';};
+  $('ovB').onclick=()=>{$('ov').classList.remove('show');newGame();};
+  $('ovM').onclick=()=>{location.href='index.html';};
+  newGame();
+</script>
+</body>
+</html>
