@@ -98,8 +98,21 @@
 <div class="wrap">
   <h1>🃏 Дурак</h1>
 
-  <div id="menuScreen" class="screen active">
+    <div id="hubScreen" class="screen active">
     <div class="panel menu">
+      <div class="lbl" style="font-size:16px;">🎮 Выбери игру</div>
+      <div style="margin-top:12px;">
+        <button class="btn gold" id="goDurak" style="display:block;width:100%;margin:6px 0;padding:16px;">🃏 Дурак</button>
+        <button class="btn gold" id="goSpider" style="display:block;width:100%;margin:6px 0;padding:16px;">🕷️ Паук</button>
+        <button class="btn gold" id="goScorp" style="display:block;width:100%;margin:6px 0;padding:16px;">🦂 Скорпион</button>
+      </div>
+      <p style="color:var(--muted);font-size:12px;">Дурак — онлайн и боты. Паук и Скорпион — пасьянсы.</p>
+    </div>
+  </div>
+
+  <div id="menuScreen" class="screen">
+    <div class="panel menu">
+            <button class="btn" id="backHub" style="margin-bottom:8px;">← Все игры</button>
       <div class="scorebar" id="statsPanel" style="padding:0;border:0;background:none;"></div>
       <div class="lbl">Режим до раздачи</div>
       <div class="moderow">
@@ -534,7 +547,7 @@
     requestWakeLock();
   }
   $('btnStart').onclick=()=>{if(isHost&&!S&&lobbyNames.length>=2)startLocal(selectedMode,lobbyNames.length,lobbyNames);};
-  function enterGame(){$('menuScreen').classList.remove('active');$('settingsScreen').classList.remove('active');$('gameScreen').classList.add('active');}
+    function enterGame(){$('hubScreen').classList.remove('active');$('menuScreen').classList.remove('active');$('settingsScreen').classList.remove('active');$('gameScreen').classList.add('active');}
 
   function startTimer(){
     stopTimer();
@@ -651,7 +664,13 @@
     hideOverlay();
     $('gameScreen').classList.remove('active');
     $('menuScreen').classList.add('active');
-         updateStats();
+       $('goDurak').onclick=()=>{$('hubScreen').classList.remove('active');$('menuScreen').classList.add('active');};
+  $('goSpider').onclick=()=>{location.href='spider.html';};
+  $('goScorp').onclick=()=>{location.href='scorpion.html';};
+  $('backHub').onclick=()=>{$('menuScreen').classList.remove('active');$('hubScreen').classList.add('active');};
+
+  updateStats();    
+    updateStats();
   };
   function setMessage(t){$('message').textContent=t;}
 
